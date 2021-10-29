@@ -9,15 +9,15 @@ readme = "./README.md"
 repository = "https://github.com/rusty-ecma/RESW"
 
 [dependencies]
-resast = "0.4.1"
+resast = { version = "0.4", path = "../resast" }
 log = "0.4"
 ress = "0.11"
 
 [dev-dependencies]
-rayon = { version = "1"}
-ressa = "0.7.0"
-pretty_env_logger = "0.4"
-thiserror = "1"
+# rayon = { version = "1" }
+# ressa = "0.7.0"
+# pretty_env_logger = "0.4"
+# thiserror = "1"
 
 [features]
 default = []

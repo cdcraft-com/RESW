@@ -1982,41 +1982,41 @@ mod test {
         assert_eq!(s, "debugger");
     }
 
-    #[test]
-    fn write_variable_decls() {
-        let mut f = write_str::WriteString::new();
-        let mut w = Writer::new(f.generate_child());
-        w.write_variable_decls(
-            &VarKind::Var,
-            &[VarDecl {
-                id: Pat::ident_from("thing"),
-                init: Some(Expr::Lit(Lit::Boolean(false))),
-            }],
-        )
-        .unwrap();
-        let s = f.get_string_lossy();
-        assert_eq!(s, "var thing = false;\n".to_string());
-        let mut f = write_str::WriteString::new();
-        let mut w = Writer::new(f.generate_child());
-        w.write_variable_decls(
-            &VarKind::Let,
-            &[
-                VarDecl {
-                    id: Pat::ident_from("stuff"),
-                    init: None,
-                },
-                VarDecl {
-                    id: Pat::ident_from("places"),
-                    init: None,
-                },
-                VarDecl {
-                    id: Pat::ident_from("thing"),
-                    init: Some(Expr::Lit(Lit::Boolean(false))),
-                },
-            ],
-        )
-        .unwrap();
-        let s = f.get_string_lossy();
-        assert_eq!(s, "let stuff, places, thing = false;\n");
-    }
+    // #[test]
+    // fn write_variable_decls() {
+    //     let mut f = write_str::WriteString::new();
+    //     let mut w = Writer::new(f.generate_child());
+    //     w.write_variable_decls(
+    //         &VarKind::Var,
+    //         &[VarDecl {
+    //             id: Pat::ident_from("thing"),
+    //             init: Some(Expr::Lit(Lit::Boolean(false))),
+    //         }],
+    //     )
+    //     .unwrap();
+    //     let s = f.get_string_lossy();
+    //     assert_eq!(s, "var thing = false;\n".to_string());
+    //     let mut f = write_str::WriteString::new();
+    //     let mut w = Writer::new(f.generate_child());
+    //     w.write_variable_decls(
+    //         &VarKind::Let,
+    //         &[
+    //             VarDecl {
+    //                 id: Pat::ident_from("stuff"),
+    //                 init: None,
+    //             },
+    //             VarDecl {
+    //                 id: Pat::ident_from("places"),
+    //                 init: None,
+    //             },
+    //             VarDecl {
+    //                 id: Pat::ident_from("thing"),
+    //                 init: Some(Expr::Lit(Lit::Boolean(false))),
+    //             },
+    //         ],
+    //     )
+    //     .unwrap();
+    //     let s = f.get_string_lossy();
+    //     assert_eq!(s, "let stuff, places, thing = false;\n");
+    // }
 }
