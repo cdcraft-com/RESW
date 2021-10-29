@@ -9,7 +9,7 @@ readme = "./README.md"
 repository = "https://github.com/rusty-ecma/RESW"
 
 [dependencies]
-resast = { version = "0.4", path = "../resast" }
+resast = { git = "https://github.com/PrivateRookie/resast", branch = "master" }
 log = "0.4"
 ress = "0.11"
 
