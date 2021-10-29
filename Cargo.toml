@@ -12,6 +12,7 @@ repository = "https://github.com/rusty-ecma/RESW"
 resast = { git = "https://github.com/PrivateRookie/resast", branch = "master" }
 log = "0.4"
 ress = "0.11"
+sourcemap = "6"
 
 [dev-dependencies]
 # rayon = { version = "1" }

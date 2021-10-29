@@ -3,6 +3,7 @@ extern crate log;
 use resast::prelude::*;
 
 use ress::{prelude::Comment, tokens::CommentKind};
+use sourcemap::{SourceMap, SourceMapBuilder};
 use std::io::{Error as IoError, Write};
 pub mod write_str;
 
@@ -11,9 +12,13 @@ pub mod write_str;
 /// `impl Write` provided
 pub struct Writer<T: Write> {
     current_indent: usize,
+    current_col: u32,
+    current_line: u32,
     at_top_level: bool,
     in_for_init: bool,
+    smb: SourceMapBuilder,
     new_line: String,
+    new_line_count: u32,
     indent: String,
     quote: Option<char>,
     out: T,
@@ -24,6 +29,7 @@ pub struct Builder<T: Write> {
     new_line: String,
     quote: Option<char>,
     indent: String,
+    source: Option<String>,
     p: ::std::marker::PhantomData<T>,
 }
 
@@ -34,6 +40,7 @@ impl<T: Write> Builder<T> {
             quote: None,
             indent: " ".repeat(4),
             p: ::std::marker::PhantomData,
+            source: None,
         }
     }
     /// Set the string to separate new lines
@@ -75,6 +82,10 @@ impl<T: Write> Builder<T> {
     pub fn set_indent(&mut self, indent: &str) {
         self.indent = indent.to_string();
     }
+
+    pub fn set_source(&mut self, source: &str) {
+        self.source = Some(source.to_string())
+    }
     /// Finalize the writer with the destination.
     pub fn build(&self, destination: T) -> Writer<T> {
         Writer::create(
@@ -82,6 +93,7 @@ impl<T: Write> Builder<T> {
             self.new_line.clone(),
             self.quote.clone(),
             self.indent.clone(),
+            self.source.clone(),
         )
     }
 }
@@ -94,18 +106,30 @@ impl<T: Write> Writer<T> {
     ///
     /// This will use `\n` for new lines, 4 spaces for indenting
     /// and the source text's quote character for quoting
-    pub fn new(out: T) -> Self {
+    pub fn new(out: T, source: Option<String>) -> Self {
         trace!("new");
-        Self::create(out, "\n".to_string(), None, " ".repeat(4))
+        Self::create(out, "\n".to_string(), None, " ".repeat(4), source)
     }
     /// Fully customizable constructor
     /// See `builder` for a more ergonomic solution
-    pub fn create(out: T, new_line: String, quote: Option<char>, indent: String) -> Self {
+    pub fn create(
+        out: T,
+        new_line: String,
+        quote: Option<char>,
+        indent: String,
+        source: Option<String>,
+    ) -> Self {
+        let mut smb = SourceMapBuilder::new(None);
+        smb.set_file(source.as_ref().map(|s| s.as_str()));
         Self {
             current_indent: 0,
+            current_col: 0,
+            current_line: 0,
             at_top_level: true,
             in_for_init: false,
             out,
+            new_line_count: (new_line.split('\n').collect::<Vec<&str>>().len() - 1) as u32,
+            smb,
             new_line,
             quote,
             indent,
@@ -118,6 +142,7 @@ impl<T: Write> Writer<T> {
             quote: None,
             indent: " ".repeat(4),
             p: ::std::marker::PhantomData,
+            source: None,
         }
     }
     /// This will loop over the contents of a `Program` and
@@ -953,7 +978,7 @@ impl<T: Write> Writer<T> {
     pub fn write_pattern(&mut self, pattern: &Pat) -> Res {
         trace!("write_pattern");
         match pattern {
-            Pat::Ident(ref i) => self.write(&i.name),
+            Pat::Ident(ref i) => self.write_ident(i),
             Pat::Obj(ref o) => self.write_object_pattern(o),
             Pat::Array(ref a) => self.write_array_pattern(a.as_slice()),
             Pat::RestElement(ref r) => self.write_rest_element(r),
@@ -1815,6 +1840,16 @@ impl<T: Write> Writer<T> {
     /// Write a plain identifier
     pub fn write_ident(&mut self, ident: &Ident<'_>) -> Res {
         trace!("write_ident");
+        if ident.s_loc.in_map {
+            self.smb.add(
+                self.current_line,
+                self.current_col,
+                ident.s_loc.start.line,
+                ident.s_loc.start.col,
+                Some("test.dag"),
+                Some(&ident.name),
+            );
+        }
         self.write(&ident.name)
     }
     /// Write a template preceded by an identifier
@@ -1929,13 +1964,19 @@ impl<T: Write> Writer<T> {
         Ok(())
     }
 
+    pub fn get_sourcemap(self) -> SourceMap {
+        self.smb.into_sourcemap()
+    }
+
     pub fn write_new_line(&mut self) -> Res {
         trace!("write_new_line");
         self.write(&self.new_line.clone())?;
+        self.current_line += self.new_line_count;
         Ok(())
     }
 
     fn write(&mut self, s: &str) -> Res {
+        self.current_col += s.len() as u32;
         let _ = self.out.write(s.as_bytes())?;
         Ok(())
     }
@@ -1943,6 +1984,7 @@ impl<T: Write> Writer<T> {
     fn write_char(&mut self, c: char) -> Res {
         let mut buf = [0u8; 4];
         let _ = self.out.write(c.encode_utf8(&mut buf).as_bytes())?;
+        self.current_col += 1;
         Ok(())
     }
 
@@ -1967,7 +2009,7 @@ mod test {
     #[test]
     fn write_empty_expression() {
         let mut f = write_str::WriteString::new();
-        let mut w = Writer::new(f.generate_child());
+        let mut w = Writer::new(f.generate_child(), None);
         w.write_empty_stmt().unwrap();
         let out = f.get_string_lossy();
         assert_eq!(out, ";".to_string());
@@ -1976,7 +2018,7 @@ mod test {
     #[test]
     fn write_debugger_stmt() {
         let mut f = write_str::WriteString::new();
-        let mut w = Writer::new(f.generate_child());
+        let mut w = Writer::new(f.generate_child(), None);
         w.write_debugger_stmt().unwrap();
         let s = f.get_string_lossy();
         assert_eq!(s, "debugger");
