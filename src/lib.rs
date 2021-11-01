@@ -343,7 +343,7 @@ impl<T: Write> Writer<T> {
             }
             self.write_ident(&s.local)?;
             self.write(" as ")?;
-            self.write(&s.exported.name)?;
+            self.write_ident(&s.exported)?;
             after_first = true;
         }
         self.write("}")?;
@@ -1388,7 +1388,7 @@ impl<T: Write> Writer<T> {
             if func.generator {
                 self.write("*")?;
             }
-            self.write(&id.name)?;
+            self.write_ident(id)?;
         } else if func.generator {
             self.write("*")?;
         }
@@ -1846,8 +1846,17 @@ impl<T: Write> Writer<T> {
                 self.current_col,
                 ident.s_loc.start.line,
                 ident.s_loc.start.col,
-                Some("test.dag"),
+                ident.s_loc.source.as_ref().map(|s| s.as_str()),
                 Some(&ident.name),
+            );
+        } else {
+            self.smb.add(
+                self.current_line,
+                self.current_col,
+                ident.s_loc.start.line,
+                ident.s_loc.start.col,
+                ident.s_loc.source.as_ref().map(|s| s.as_str()),
+                None,
             );
         }
         self.write(&ident.name)
@@ -1972,6 +1981,7 @@ impl<T: Write> Writer<T> {
         trace!("write_new_line");
         self.write(&self.new_line.clone())?;
         self.current_line += self.new_line_count;
+        self.current_col = 0;
         Ok(())
     }
 
