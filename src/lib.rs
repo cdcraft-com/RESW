@@ -4,7 +4,10 @@ use resast::prelude::*;
 
 use ress::{prelude::Comment, tokens::CommentKind};
 use sourcemap::{SourceMap, SourceMapBuilder};
-use std::io::{Error as IoError, Write};
+use std::{
+    collections::HashSet,
+    io::{Error as IoError, Write},
+};
 pub mod write_str;
 
 /// The writer that will take in
@@ -14,6 +17,7 @@ pub struct Writer<T: Write> {
     current_indent: usize,
     current_col: u32,
     current_line: u32,
+    line_registered: HashSet<u32>,
     at_top_level: bool,
     in_for_init: bool,
     smb: SourceMapBuilder,
@@ -125,6 +129,7 @@ impl<T: Write> Writer<T> {
             current_indent: 0,
             current_col: 0,
             current_line: 0,
+            line_registered: HashSet::new(),
             at_top_level: true,
             in_for_init: false,
             out,
@@ -1840,6 +1845,16 @@ impl<T: Write> Writer<T> {
     /// Write a plain identifier
     pub fn write_ident(&mut self, ident: &Ident<'_>) -> Res {
         trace!("write_ident");
+        if self.line_registered.insert(ident.s_loc.start.line) {
+            self.smb.add(
+                self.current_line,
+                0,
+                ident.s_loc.start.line,
+                0,
+                ident.s_loc.source.as_ref().map(|s| s.as_str()),
+                None,
+            );
+        }
         if ident.s_loc.in_map {
             self.smb.add(
                 self.current_line,
@@ -1848,15 +1863,6 @@ impl<T: Write> Writer<T> {
                 ident.s_loc.start.col,
                 ident.s_loc.source.as_ref().map(|s| s.as_str()),
                 Some(&ident.name),
-            );
-        } else {
-            self.smb.add(
-                self.current_line,
-                self.current_col,
-                ident.s_loc.start.line,
-                ident.s_loc.start.col,
-                ident.s_loc.source.as_ref().map(|s| s.as_str()),
-                None,
             );
         }
         self.write(&ident.name)
