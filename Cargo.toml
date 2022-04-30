@@ -9,7 +9,7 @@ readme = "./README.md"
 repository = "https://github.com/rusty-ecma/RESW"
 
 [dependencies]
-resast = { git = "https://github.com/PrivateRookie/resast", branch = "master" }
+resast = { git = "https://github.com/cdcraft-com/resast", branch = "master" }
 log = "0.4"
 ress = "0.11"
 sourcemap = "6"
