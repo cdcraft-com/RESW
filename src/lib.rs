@@ -270,7 +270,7 @@ impl<T: Write> Writer<T> {
         for ref part in &class.body.0 {
             self.write_new_line()?;
             self.write_leading_whitespace()?;
-            self.write_property(part)?;
+            self.write_class_property(part)?;
             self.write_new_line()?;
         }
         self.write_close_brace()?;
@@ -1037,6 +1037,28 @@ impl<T: Write> Writer<T> {
             PropKind::Ctor => self.write_ctor_property(prop),
         }
     }
+
+    pub fn write_class_property(&mut self, prop: &Prop) -> Res {
+        trace!("write_class_property");
+        if prop.is_static {
+            self.write("static ")?;
+        }
+        match &prop.kind {
+            PropKind::Init => {
+                if prop.method {
+                    self.write_property_method(prop)
+                } else if prop.is_static {
+                    self.write_class_static_property(prop)
+                } else {
+                    self.write_init_property(prop)
+                }
+            }
+            PropKind::Get => self.write_get_property(prop),
+            PropKind::Set => self.write_set_property(prop),
+            PropKind::Method => self.write_property_method(prop),
+            PropKind::Ctor => self.write_ctor_property(prop),
+        }
+    }
     /// Write a property that is not a method or constructor
     /// ```js
     /// {
@@ -1049,6 +1071,24 @@ impl<T: Write> Writer<T> {
             self.write_property_key(&prop.key, prop.computed)?;
             if prop.value != PropValue::None {
                 self.write(": ")?;
+            }
+        }
+        match &prop.value {
+            PropValue::None => (),
+            PropValue::Expr(_) | PropValue::Pat(_) => {
+                self.write_property_value(&prop.value)?;
+            }
+        }
+        Ok(())
+    }
+
+
+    pub fn write_class_static_property(&mut self, prop: &Prop) -> Res {
+        trace!("write_init_property: {:?}", prop);
+        if !prop.short_hand || matches!(&prop.value, PropValue::None) {
+            self.write_property_key(&prop.key, prop.computed)?;
+            if prop.value != PropValue::None {
+                self.write("= ")?;
             }
         }
         match &prop.value {
